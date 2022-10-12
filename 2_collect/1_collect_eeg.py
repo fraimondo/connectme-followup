@@ -19,7 +19,7 @@ index_cols = [
     "epochs_fun",
 ]
 
-opt_cols = ["session", "channels",]
+opt_cols = ["session", "channels"]
 
 stack_cols = ["Marker", "channels_fun", "epochs_fun"]
 
@@ -39,7 +39,7 @@ for t_name, t_path in in_paths.items():
         if x in final_df.columns:
             t_index_cols.append(x)
 
-    final_df = final_df.set_index(index_cols)["Value"].unstack(stack_cols)
+    final_df = final_df.set_index(t_index_cols)["Value"].unstack(stack_cols)
     new_names = [
         f"{x.replace('nice/marker/', '').replace('/', '_')}_{y}_{z}"
         for x, y, z in final_df.columns]

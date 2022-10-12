@@ -1,4 +1,6 @@
 import numpy as np
+import pandas as pd
+
 from pathlib import Path
 import mne
 from mne.utils import logger
@@ -66,3 +68,23 @@ def read_rs_ld_df(fnames):
     logger.info('Reading done')
     return raw
 
+
+def get_icm_scalars(data_path, n_channels, pos_labels=None):
+    scalars_fname = data_path / f"icm_{n_channels}_EEG_markers.csv"
+    meta_fname = data_path / 'PATIENTS DOC.xlsx'
+    scalars = pd.read_csv(scalars_fname, sep=';')
+    metadata = pd.read_excel(meta_fname)
+
+    to_keep = ['NEW_CODE', 'DIAGNOSTIC_CRS_FINAL']
+    new_names = {'NEW_CODE': 'subject', 'DIAGNOSTIC_CRS_FINAL': 'target'}
+
+    metadata = metadata[to_keep].rename(columns=new_names)
+
+    good_labels = ['COMA', 'VS', 'MCS-', 'MCS+', 'EMCS']
+    metadata = metadata[metadata['target'].isin(good_labels)].drop_duplicates()
+
+    metadata = metadata.set_index(['subject'])
+    scalars = scalars.join(metadata, on='subject').set_index(['subject'])
+    if pos_labels is not None:
+        scalars['target'] = scalars['target'].isin(pos_labels).astype(int)
+    return scalars
