@@ -1,9 +1,7 @@
+import numpy as np
 from pathlib import Path
 import mne
 from mne.utils import logger
-
-import sys
-sys.path.append(Path(__file__).parent.parent.as_posix())
 
 from lib.constants import _copenhagen_montages, _copenhagen_ch_names
 
@@ -24,12 +22,20 @@ def read_rs_ld_df(fnames):
         t_raw.drop_channels(to_drop)
 
         rename = {x: x.replace('EEG', '').replace('-REF', '').replace(
-            '-AV', '').replace('LR', '').strip() for x in to_keep}
+            '-AV', '').replace('LR', '').replace('-Ref', '').strip()
+            for x in to_keep}
 
         t_raw.rename_channels(rename)
 
         # TODO: check between 19 or 25 electrodes
-        str_chan = str(t_raw.info['nchan'])
+        n_channels = t_raw.info['nchan']
+        if n_channels < 19:
+            raise ValueError('Less than 19 channels in data. Check!')
+        elif n_channels < 25:
+            n_channels = 19
+        else:
+            n_channels = 25
+        str_chan = str(n_channels)
         montage = mne.channels.make_standard_montage(
             _copenhagen_montages[str_chan])
         chs_to_keep = _copenhagen_ch_names[str_chan]
@@ -45,9 +51,18 @@ def read_rs_ld_df(fnames):
         t_raw.set_montage(montage)
         t_raw.info['description'] = f'copenhagen/{str_chan}'
         raws.append(t_raw)
+
+    all_n_channels = [t.info['nchan'] for t in raws]
+    if len(np.unique(all_n_channels)) > 1:
+        n_to_keep = np.min(all_n_channels)
+        str_chan = str(n_to_keep)
+        chs_to_keep = _copenhagen_ch_names[str_chan]
+        for t in raws:
+            t.pick_channels(chs_to_keep)
     raws = sorted(raws, key=lambda x: x.info['meas_date'])
     raw = mne.io.concatenate_raws(raws)
     raw.set_montage(montage)
     raw.info['description'] = f'copenhagen/{str_chan}'
     logger.info('Reading done')
     return raw
+

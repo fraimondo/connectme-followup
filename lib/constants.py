@@ -91,3 +91,14 @@ _egi256__copenhagen19_map = {
     'E81': 'Cz',
     'E101': 'Pz',
 }
+
+_icm_lg_event_id = {
+    'HSTD': 10,
+    'HDVT': 20,
+    'LSGS': 30,
+    'LSGD': 40,
+    'LDGS': 60,
+    'LDGD': 50
+}
+
+_icm_lg_concatenation_event = 2014.0

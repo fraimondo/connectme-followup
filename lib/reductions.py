@@ -25,14 +25,18 @@ def _get_func_by_name(name):
 
 
 def get_reductions(n_channels, channels_fun_name, epochs_fun_name):
-    reduction_params = {}
     rois = _copenhagen_25_rois if n_channels == 25 else _copenhagen_19_rois
     scalp_roi = rois['scalp']
+    epochs_fun = _get_func_by_name(epochs_fun_name)
+    channels_fun = _get_func_by_name(channels_fun_name)
+    return _get_reductions(scalp_roi, channels_fun, epochs_fun)
+
+
+def _get_reductions(scalp_roi,channels_fun, epochs_fun):
 
     epochs_picks = None
 
-    epochs_fun = _get_func_by_name(epochs_fun_name)
-    channels_fun = _get_func_by_name(channels_fun_name)
+    reduction_params = {}
 
     reduction_params['PowerSpectralDensity'] = {
         'reduction_func':
