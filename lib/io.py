@@ -88,3 +88,11 @@ def get_icm_scalars(data_path, n_channels, pos_labels=None):
     if pos_labels is not None:
         scalars['target'] = scalars['target'].isin(pos_labels).astype(int)
     return scalars
+
+
+def get_connectme_scalars(data_path, n_channels, kind):
+    scalars = pd.read_csv(data_path / f"{kind}_EEG_markers.csv", sep=";")
+    scalars = scalars.set_index('subject')
+    scalars = scalars[scalars["channels"] == n_channels]
+    scalars = scalars.drop(columns=["channels", "session"])
+    return scalars
