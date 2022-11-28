@@ -9,6 +9,7 @@ from sklearn.ensemble import ExtraTreesClassifier
 from sklearn.model_selection import GridSearchCV, StratifiedKFold
 from sklearn.feature_selection import SelectPercentile, f_classif
 import julearn
+from julearn.utils import logger
 from sklearn.model_selection import (
     RepeatedStratifiedKFold,
     StratifiedShuffleSplit,
@@ -68,15 +69,15 @@ def get_model(clf_type, seed, clf_params=None, clf_select=None, y=None):
             class_weight="balanced",
         )
         svc_params.update(clf_params)
-        print(f"Predict using GSSVM with {svc_params}")
+        logger.info(f"Predict using GSSVM with {svc_params}")
         gc_fit_params = {"C": cost_range}
-        print(f"GridSearch on {gc_fit_params}")
+        logger.info(f"GridSearch on {gc_fit_params}")
         GSSVM = GridSearchCV(
             SVC(**svc_params), gc_fit_params, cv=skf, scoring="roc_auc"
         )
         clf_model = GSSVM
         if clf_select is not None:
-            print(f"Selecting {clf_select}% of markers")
+            logger.info(f"Selecting {clf_select}% of markers")
             clf = Pipeline(
                 [
                     ("scaler", StandardScaler()),
@@ -103,10 +104,10 @@ def get_model(clf_type, seed, clf_params=None, clf_select=None, y=None):
             class_weight=class_weight,
         )
         svc_params.update(clf_params)
-        print(f"Predict using SVM with {svc_params}")
+        logger.info(f"Predict using SVM with {svc_params}")
         clf_model = SVC(**svc_params)
         if clf_select is not None:
-            print(f"Selecting {clf_select}% of markers")
+            logger.info(f"Selecting {clf_select}% of markers")
             clf = Pipeline(
                 [
                     ("scaler", StandardScaler()),
@@ -129,7 +130,7 @@ def get_model(clf_type, seed, clf_params=None, clf_select=None, y=None):
             criterion="entropy",
         )
         et_params.update(clf_params)
-        print(f"Predict using ET (reduced depth) with {et_params}")
+        logger.info(f"Predict using ET (reduced depth) with {et_params}")
         clf_model = ExtraTreesClassifier(**et_params)
         clf = Pipeline([("scaler", RobustScaler()), (clf_type, clf_model)])
     else:
@@ -151,7 +152,7 @@ def get_data(
     diagnosis_bin=False,
     drop_na=True,
 ):
-    data_path = Path(__file__).parent.parent / "data" / "complete_df.csv"
+    data_path = Path(__file__).parent.parent / "data" / "complete_df.2.csv"
     df = pd.read_csv(data_path, sep=";", decimal=",")
 
     X = []
@@ -223,7 +224,9 @@ def run_cv(df, X, y, title, model, cv, name, target_name):
     if model == "svm":
         extra_params["model"] = "svm"
         extra_params["preprocess_X"] = "zscore"
-        extra_params["model_params"] = {"svm__kernel": "linear"}
+        extra_params["model_params"] = {
+            "svm__kernel": "linear",
+            "svm__class_weight": "balanced"}
     elif model == "rf":
         extra_params["model"] = "rf"
         extra_params["model_params"] = {
@@ -238,8 +241,25 @@ def run_cv(df, X, y, title, model, cv, name, target_name):
         extra_params["model_params"] = {
             "svm__kernel": "linear",
             "svm__C": [1e-4, 1e-3, 1e-2, 1e-1, 1, 1e1, 1e2],
-            "search_params": search_params
+            "search_params": search_params,
+            "svm__class_weight": "balanced"
         }
+    elif model == "gsrf":
+        extra_params["model"] = "rf"
+        extra_params["preprocess_X"] = "zscore"
+        search_params = {
+            "cv": StratifiedKFold(n_splits=5, random_state=77, shuffle=True),
+        }
+        extra_params["model_params"] = {
+            "rf__n_estimators": [200, 500],
+            "rf__max_features": ["sqrt", "log2"],
+            "rf__max_depth": [1, int(len(X) / 4), int(len(X) / 2), len(X)],
+            "rf__criterion": ["gini", "entropy", "log_loss"],
+            "search_params": search_params,
+            "rf__class_weight": "balanced"
+        }
+    else:
+        raise ValueError(f"Unknown model {model}")
 
     problem_type = "binary_classification"
     scoring = ["accuracy", "precision", "recall", "roc_auc"]
@@ -263,11 +283,11 @@ def run_cv(df, X, y, title, model, cv, name, target_name):
     cv_results['features'] = name  # type: ignore
     cv_results['model'] = model  # type: ignore
     cv_results['target'] = y  # type: ignore
-    print("=============================")
-    print(title)
-    print(f"TARGET: {target_name}")
-    print(f"# SAMPLES: {len(df)}")
-    print(cv_results.mean())  # type: ignore
-    print("=============================")
+    logger.info("=============================")
+    logger.info(title)
+    logger.info(f"TARGET: {target_name}")
+    logger.info(f"# SAMPLES: {len(df)}")
+    logger.info(cv_results.mean(numeric_only=True))  # type: ignore
+    logger.info("=============================")
     
     return cv_results

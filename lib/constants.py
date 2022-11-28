@@ -348,13 +348,15 @@ DIAGBIN_FEATURES = ["doc.enrol.bi", "doc.disch.bi"]
 
 TARGETS = [
     # "GOS-E.3",
-    # "GOS-E.3.bin",
+    "GOS-E.3.bin",
     # "GOS-E.12",
     "GOS-E.12.bin",
-    # "mRS.3.bin",
+    "mRS.3.bin",
     "mRS.12.bin",
-    # "CPC.3.bin",
+    "CPC.3.bin",
     "CPC.12.bin",
+    "combined.outcome.3",
+    "combined.outcome.12",
 ]
 
 abcd_map = {"A": 1, "B": 2, "C": 3, "D": 4, "nonABCD": np.nan}
@@ -414,6 +416,8 @@ to_map = {
     "mRS.12.bin": outcome_bin,
     "CPC.3.bin": outcome_bin,
     "CPC.12.bin": outcome_bin,
+    "combined.outcome.3": outcome_bin,
+    "combined.outcome.12": outcome_bin,
     "death": death_map,
 }
 
