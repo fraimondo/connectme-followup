@@ -1,8 +1,9 @@
 from pathlib import Path
 import os
 
-# feature_sets = [1, 2, 3, 4, 5, 6, 7, 8, 9]
-feature_sets = [10, 11]
+# feature_sets = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+# feature_sets = [1, 2, 3, 4, 5, 11]
+feature_sets = [13]
 targets = [
     "GOS-E.3.bin",
     "GOS-E.12.bin",
@@ -13,8 +14,8 @@ targets = [
     "combined.outcome.3",
     "combined.outcome.12",
 ]
-models = ["gsrf", "gssvm"]
-cvs = ["mc"]
+models = ["gssvm", "gsrf"]
+cvs = ["kfold"]
 
 out_dir = Path(__file__).resolve().parent / 'results' / '3_same_data'
 out_dir.mkdir(exist_ok=True, parents=True)

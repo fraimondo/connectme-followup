@@ -1,8 +1,9 @@
 from pathlib import Path
 import os
 
-# feature_sets = [1, 2, 3, 4, 5, 6, 7, 8, 9]
-feature_sets = [10, 11]
+# feature_sets = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+# feature_sets = [6, 10, 12]
+feature_sets = [13]
 targets = [
     "GOS-E.3.bin",
     "GOS-E.12.bin",
@@ -14,8 +15,9 @@ targets = [
     "combined.outcome.12",
 ]
 # models = ["gsrf"]
-models = ["gssvm"]
-cvs = ["mc"]
+models = ["gssvm", "gsrf", "rf", "svm"]
+cvs = ["kfold"]
+# cvs = ["loo"]
 
 out_dir = Path(__file__).resolve().parent / 'results' / '1_max_data'
 out_dir.mkdir(exist_ok=True, parents=True)
@@ -62,6 +64,7 @@ submit_fname = "1_max_data.submit"
 with open(submit_fname, "w") as submit_file:
     submit_file.write(preamble)
     for cv in cvs:
+        (log_dir / cv).mkdir(exist_ok=True, parents=True)
         for feature_set in feature_sets:
             for model in models:
                 for target in targets:
@@ -70,7 +73,7 @@ with open(submit_fname, "w") as submit_file:
                     submit_file.write(f"target={target}\n")
                     submit_file.write(f"features={feature_set}\n")
                     submit_file.write(
-                        "log_fname=1_max_data_set_"
+                        f"log_fname={cv}/1_max_data_set_"
                         f"{feature_set}_{model}_{target}_{cv}\n"
                     )
                     submit_file.write("queue\n\n")

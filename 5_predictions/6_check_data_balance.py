@@ -91,6 +91,10 @@ feature_sets = [
         },
         "title": "RESTING+VISUAL+ABCD+MODEL",
     },
+    {
+        "features": {"fmri": True, "eeg_model": "resting"},
+        "title": "FMRI+MODEL_RESTING",
+    },
 ]
 
 # %%

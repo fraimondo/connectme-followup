@@ -123,6 +123,17 @@ elif feature_set == 11:
         'eeg_model': True
     }
     title = "RESTING+VISUAL+ABCD+MODEL"
+elif feature_set == 12:
+    features = {
+        'fmri': True,
+        'eeg_model': "resting",
+    }
+    title = "FMRI+MODEL_RESTING"
+elif feature_set == 13:
+    features = {
+        'eeg_abcd': True,
+    }
+    title = "ABCD"
 else:
     raise_error(f"Unknown feature set {feature_set}")
 

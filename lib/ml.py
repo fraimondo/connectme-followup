@@ -1,5 +1,6 @@
 from warnings import warn
 import numpy as np
+from scipy import stats
 import pandas as pd
 from pathlib import Path
 from sklearn.pipeline import Pipeline
@@ -14,7 +15,9 @@ from sklearn.model_selection import (
     RepeatedStratifiedKFold,
     StratifiedShuffleSplit,
     StratifiedKFold,
+    LeaveOneOut,
 )
+
 
 from lib.constants import (
     DIAG_FEATURES,
@@ -23,6 +26,7 @@ from lib.constants import (
     EEG_VISUAL_FEATURES,
     EEG_ABCD_FEATURES,
     EEG_MODEL_FEATURES,
+    EEG_MODEL_RESTING_FEATURES,
     EEG_STIM_FEATURES,
     EEG_RESTING_FEATURES,
     AGESEX_FEATURES,
@@ -162,8 +166,12 @@ def get_data(
         X.extend(EEG_VISUAL_FEATURES)
     if eeg_abcd:
         X.extend(EEG_ABCD_FEATURES)
-    if eeg_model:
+
+    if eeg_model is True:
         X.extend(EEG_MODEL_FEATURES)
+    elif eeg_model == "resting":
+        X.extend(EEG_MODEL_RESTING_FEATURES)
+
     if eeg_stim:
         X.extend(EEG_STIM_FEATURES)
     if eeg_resting:
@@ -187,6 +195,10 @@ def get_data(
 
     if eeg_model is True:
         t_df[EEG_MODEL_FEATURES] = t_df[EEG_MODEL_FEATURES].astype(float)
+    elif eeg_model == "resting":
+        t_df[EEG_MODEL_RESTING_FEATURES] = t_df[
+            EEG_MODEL_RESTING_FEATURES
+        ].astype(float)
 
     if eeg_stim is True:
         t_df[EEG_STIM_FEATURES] = t_df[EEG_STIM_FEATURES].astype(float)
@@ -207,8 +219,15 @@ def get_data(
     return t_df, X
 
 
-def run_cv(df, X, y, title, model, cv, name, target_name):
+def proba_scorer(estimator, X, y):
+    if X.shape[0] > 1:
+        return 0
+    return estimator.predict_proba(X)[:, 1]
 
+
+def run_cv(df, X, y, title, model, cv, name, target_name):
+    scoring = [
+        "accuracy", "precision", "recall", "roc_auc", "balanced_accuracy"]
     if cv == "kfold":
         cv = RepeatedStratifiedKFold(
             n_splits=5, n_repeats=10, random_state=42
@@ -217,6 +236,10 @@ def run_cv(df, X, y, title, model, cv, name, target_name):
         cv = StratifiedShuffleSplit(
             n_splits=100, test_size=0.3, random_state=42
         )
+    elif cv == "loo":
+        cv = LeaveOneOut()
+        julearn.scoring.register_scorer("proba", proba_scorer)
+        scoring = ["accuracy", "proba"]
     else:
         raise ValueError('Unknown CV scheme ["kfold" or "mc"]')
 
@@ -226,7 +249,9 @@ def run_cv(df, X, y, title, model, cv, name, target_name):
         extra_params["preprocess_X"] = "zscore"
         extra_params["model_params"] = {
             "svm__kernel": "linear",
-            "svm__class_weight": "balanced"}
+            "svm__class_weight": "balanced",
+            "svm__probability": True,
+        }
     elif model == "rf":
         extra_params["model"] = "rf"
         extra_params["model_params"] = {
@@ -242,7 +267,8 @@ def run_cv(df, X, y, title, model, cv, name, target_name):
             "svm__kernel": "linear",
             "svm__C": [1e-4, 1e-3, 1e-2, 1e-1, 1, 1e1, 1e2],
             "search_params": search_params,
-            "svm__class_weight": "balanced"
+            "svm__class_weight": "balanced",
+            "svm__probability": True
         }
     elif model == "gsrf":
         extra_params["model"] = "rf"
@@ -250,10 +276,12 @@ def run_cv(df, X, y, title, model, cv, name, target_name):
         search_params = {
             "cv": StratifiedKFold(n_splits=5, random_state=77, shuffle=True),
         }
+        max_depths =  [1, int(len(X) / 4), int(len(X) / 2), len(X)]
+        max_depths = [x for x in max_depths if x > 0]
         extra_params["model_params"] = {
             "rf__n_estimators": [200, 500],
             "rf__max_features": ["sqrt", "log2"],
-            "rf__max_depth": [1, int(len(X) / 4), int(len(X) / 2), len(X)],
+            "rf__max_depth": max_depths,
             "rf__criterion": ["gini", "entropy", "log_loss"],
             "search_params": search_params,
             "rf__class_weight": "balanced"
@@ -262,7 +290,7 @@ def run_cv(df, X, y, title, model, cv, name, target_name):
         raise ValueError(f"Unknown model {model}")
 
     problem_type = "binary_classification"
-    scoring = ["accuracy", "precision", "recall", "roc_auc"]
+
     if y in ['GOS-E.3', 'GOS-E.12']:
         problem_type = 'regression'
         scoring = ['r2', 'neg_mean_absolute_error', 'neg_mean_squared_error']
@@ -289,5 +317,31 @@ def run_cv(df, X, y, title, model, cv, name, target_name):
     logger.info(f"# SAMPLES: {len(df)}")
     logger.info(cv_results.mean(numeric_only=True))  # type: ignore
     logger.info("=============================")
-    
+
     return cv_results
+
+
+def compute_ci(data, ci=95, use_percentile=False, use_gaussian=False):
+    x = np.mean(data)
+
+    if use_percentile:
+        ci_lower, ci_upper = np.percentile(
+            data, [(100 - ci) / 2, ci + ((100 - ci) / 2)])
+    elif use_gaussian:
+        if ci != 95:
+            raise ValueError("Gaussian CI only supports 95%")
+        q1, med, q3 = np.percentile(data, [25, 50, 75])
+        iqr = q3 - q1
+        ci_lower = med - 1.57 * iqr / np.sqrt(len(data))
+        ci_upper = med + 1.57 * iqr / np.sqrt(len(data))
+    else:
+        n_samples = len(data)
+        ci = ci / 100
+        if n_samples <= 30:
+            ci_lower, ci_upper = stats.t.interval(
+                ci, len(data)-1, loc=x, scale=stats.sem(data))
+        else:
+            ci_lower, ci_upper = stats.norm.interval(
+                alpha=ci, loc=np.mean(data), scale=stats.sem(data))
+    # return pd.Series({"mean": x, "ci_lower": ci_lower, "ci_upper": ci_upper})
+    return x, ci_lower, ci_upper

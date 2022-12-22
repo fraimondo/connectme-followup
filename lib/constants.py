@@ -200,6 +200,7 @@ FMRI_FEATURES = [
 EEG_VISUAL_FEATURES = ["eeg.visual.synek"]
 EEG_ABCD_FEATURES = ["eeg.abcd"]
 EEG_MODEL_FEATURES = ["eeg.stack.PMCS_resting", "eeg.stack.PMCS_stim"]
+EEG_MODEL_RESTING_FEATURES = ["eeg.stack.PMCS_resting"]
 EEG_STIM_FEATURES = [
     "eeg.stim.PowerSpectralDensity_delta_mean_trim_mean80",
     "eeg.stim.PowerSpectralDensity_deltan_mean_trim_mean80",

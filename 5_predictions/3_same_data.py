@@ -43,7 +43,7 @@ out_dir = args.out_dir
 
 title = "wrong"
 features = {
-    'fmri': True,
+    # 'fmri': True,
     'eeg_resting': True,
     'eeg_visual': True,
     'eeg_abcd': True,
@@ -72,24 +72,32 @@ elif feature_set == 5:
 elif feature_set == 6:
     X = FMRI_FEATURES
     title = "FMRI"
+    sys.exit("FMRI not implemented")
 elif feature_set == 7:
     X = FMRI_FEATURES + EEG_MODEL_FEATURES
     title = "FMRI+MODEL"
+    sys.exit("FMRI not implemented")
 elif feature_set == 8:
     X = FMRI_FEATURES + EEG_VISUAL_FEATURES + \
         EEG_ABCD_FEATURES + EEG_MODEL_FEATURES
     title = "FMRI+VISUAL+ABCD+MODEL"
+    sys.exit("FMRI not implemented")
 elif feature_set == 9:
     X = FMRI_FEATURES + EEG_RESTING_FEATURES + EEG_VISUAL_FEATURES + \
         EEG_ABCD_FEATURES + EEG_MODEL_FEATURES
     title = "FMRI+RESTING+VISUAL+ABCD+MODEL"
+    sys.exit("FMRI not implemented")
 elif feature_set == 10:
     X = FMRI_FEATURES + EEG_VISUAL_FEATURES
     title = "FMRI+VISUAL"
+    sys.exit("FMRI not implemented")
 elif feature_set == 11:
     X = EEG_RESTING_FEATURES + EEG_VISUAL_FEATURES + \
         EEG_ABCD_FEATURES + EEG_MODEL_FEATURES
     title = "RESTING+VISUAL+ABCD+MODEL"
+elif feature_set == 13:
+    X = EEG_ABCD_FEATURES
+    title = "ABCD"
 else:
     raise_error(f"Unknown feature set {feature_set}")
 
