@@ -288,7 +288,6 @@ def run_cv(df, X, y, title, model, cv, name, target_name):
         search_params = {
             "cv": StratifiedKFold(n_splits=5, random_state=77, shuffle=True),
         }
-
     elif model == "gsrf":
         search_params = {
             "cv": StratifiedKFold(n_splits=5, random_state=77, shuffle=True),
