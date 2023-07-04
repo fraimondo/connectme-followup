@@ -10,6 +10,8 @@ from sklearn.ensemble import ExtraTreesClassifier
 from sklearn.model_selection import GridSearchCV, StratifiedKFold
 from sklearn.feature_selection import SelectPercentile, f_classif
 import julearn
+from julearn.pipeline import PipelineCreator
+
 from julearn.utils import logger
 from sklearn.model_selection import (
     RepeatedStratifiedKFold,
@@ -32,6 +34,7 @@ from lib.constants import (
     AGESEX_FEATURES,
     DEATH_FEATURES,
     DIAGBIN_FEATURES,
+    CLINICAL_FEATURES,
     to_map,
 )
 
@@ -154,6 +157,7 @@ def get_data(
     death=False,
     diagnosis=False,
     diagnosis_bin=False,
+    clinical=False,
     drop_na=True,
 ):
     data_path = Path(__file__).parent.parent / "data" / "complete_df.2.csv"
@@ -184,6 +188,8 @@ def get_data(
         X.extend(DIAG_FEATURES)
     if diagnosis_bin:
         X.extend(DIAGBIN_FEATURES)
+    if clinical:
+        X.extend(CLINICAL_FEATURES)
 
     t_df = df[X + TARGETS]
     if drop_na is True or drop_na == 1:
@@ -227,11 +233,14 @@ def proba_scorer(estimator, X, y):
 
 def run_cv(df, X, y, title, model, cv, name, target_name):
     scoring = [
-        "accuracy", "precision", "recall", "roc_auc", "balanced_accuracy"]
+        "accuracy",
+        "precision",
+        "recall",
+        "roc_auc",
+        "balanced_accuracy",
+    ]
     if cv == "kfold":
-        cv = RepeatedStratifiedKFold(
-            n_splits=5, n_repeats=10, random_state=42
-        )
+        cv = RepeatedStratifiedKFold(n_splits=5, n_repeats=10, random_state=42)
     elif cv == "mc":
         cv = StratifiedShuffleSplit(
             n_splits=100, test_size=0.3, random_state=42
@@ -243,74 +252,75 @@ def run_cv(df, X, y, title, model, cv, name, target_name):
     else:
         raise ValueError('Unknown CV scheme ["kfold" or "mc"]')
 
-    extra_params = {}
+    search_params = None
+    creator = PipelineCreator(problem_type="classification")
+    if y in ["GOS-E.3", "GOS-E.12"]:
+        creator = PipelineCreator(problem_type="regression")
+        scoring = ["r2", "neg_mean_absolute_error", "neg_mean_squared_error"]
+
+    creator.add("zscore")
     if model == "svm":
-        extra_params["model"] = "svm"
-        extra_params["preprocess_X"] = "zscore"
-        extra_params["model_params"] = {
-            "svm__kernel": "linear",
-            "svm__class_weight": "balanced",
-            "svm__probability": True,
-        }
+        creator.add(
+            "svm", kernel="linear", class_weight="balanced", probability=True
+        )
+
     elif model == "rf":
-        extra_params["model"] = "rf"
-        extra_params["model_params"] = {
-            "rf__n_estimators": 500,
-        }
+        creator.add("rf", n_estimators=500)
     elif model == "gssvm":
-        extra_params["model"] = "svm"
-        extra_params["preprocess_X"] = "zscore"
+        if y in ["GOS-E.3", "GOS-E.12"]:
+            creator.add(
+                "svm",
+                kernel="linear",
+                C=[1e-4, 1e-3, 1e-2, 1e-1, 1, 1e1, 1e2],
+                class_weight="balanced",
+                probability=True,
+                epsilon=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+            )
+        else:
+            creator.add(
+                "svm",
+                kernel="linear",
+                C=[1e-4, 1e-3, 1e-2, 1e-1, 1, 1e1, 1e2],
+                class_weight="balanced",
+                probability=True,
+            )
+
         search_params = {
             "cv": StratifiedKFold(n_splits=5, random_state=77, shuffle=True),
         }
-        extra_params["model_params"] = {
-            "svm__kernel": "linear",
-            "svm__C": [1e-4, 1e-3, 1e-2, 1e-1, 1, 1e1, 1e2],
-            "search_params": search_params,
-            "svm__class_weight": "balanced",
-            "svm__probability": True
-        }
+
     elif model == "gsrf":
-        extra_params["model"] = "rf"
-        extra_params["preprocess_X"] = "zscore"
         search_params = {
             "cv": StratifiedKFold(n_splits=5, random_state=77, shuffle=True),
         }
-        max_depths =  [1, int(len(X) / 4), int(len(X) / 2), len(X)]
+        max_depths = [1, int(len(X) / 4), int(len(X) / 2), len(X)]
         max_depths = [x for x in max_depths if x > 0]
-        extra_params["model_params"] = {
-            "rf__n_estimators": [200, 500],
-            "rf__max_features": ["sqrt", "log2"],
-            "rf__max_depth": max_depths,
-            "rf__criterion": ["gini", "entropy", "log_loss"],
-            "search_params": search_params,
-            "rf__class_weight": "balanced"
-        }
+        creator.add(
+            "rf",
+            n_estimators=[200, 500],
+            max_depth=max_depths,
+            max_features=["sqrt", "log2"],
+            criterion=["gini", "entropy", "log_loss"],
+            class_weight="balanced",
+        )
     else:
         raise ValueError(f"Unknown model {model}")
 
-    problem_type = "binary_classification"
-
-    if y in ['GOS-E.3', 'GOS-E.12']:
-        problem_type = 'regression'
-        scoring = ['r2', 'neg_mean_absolute_error', 'neg_mean_squared_error']
-        if model == "gssvm":
-            eps_params = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
-            extra_params[
-                'model_params']['svm__epsilon'] = eps_params  # type: ignore
-    cv_results = julearn.api.run_cross_validation(
+    cv_results, final_model, inspector = julearn.api.run_cross_validation(
         X=X,
         y=y,
         data=df,
-        problem_type=problem_type,
+        X_types={"continuous": X},
+        model=creator,
         scoring=scoring,
         cv=cv,
-        confounds=None,
-        **extra_params,
+        return_estimator="all",
+        return_inspector=True,
+        return_train_score=True,
     )
-    cv_results['features'] = name  # type: ignore
-    cv_results['model'] = model  # type: ignore
-    cv_results['target'] = y  # type: ignore
+    cv_results["features"] = name  # type: ignore
+    cv_results["model"] = model  # type: ignore
+    cv_results["target"] = y  # type: ignore
     logger.info("=============================")
     logger.info(title)
     logger.info(f"TARGET: {target_name}")
@@ -318,7 +328,7 @@ def run_cv(df, X, y, title, model, cv, name, target_name):
     logger.info(cv_results.mean(numeric_only=True))  # type: ignore
     logger.info("=============================")
 
-    return cv_results
+    return cv_results, final_model, inspector
 
 
 def compute_ci(data, ci=95, use_percentile=False, use_gaussian=False):
@@ -326,7 +336,8 @@ def compute_ci(data, ci=95, use_percentile=False, use_gaussian=False):
 
     if use_percentile:
         ci_lower, ci_upper = np.percentile(
-            data, [(100 - ci) / 2, ci + ((100 - ci) / 2)])
+            data, [(100 - ci) / 2, ci + ((100 - ci) / 2)]
+        )
     elif use_gaussian:
         if ci != 95:
             raise ValueError("Gaussian CI only supports 95%")
@@ -339,9 +350,11 @@ def compute_ci(data, ci=95, use_percentile=False, use_gaussian=False):
         ci = ci / 100
         if n_samples <= 30:
             ci_lower, ci_upper = stats.t.interval(
-                ci, len(data)-1, loc=x, scale=stats.sem(data))
+                ci, len(data) - 1, loc=x, scale=stats.sem(data)
+            )
         else:
             ci_lower, ci_upper = stats.norm.interval(
-                alpha=ci, loc=np.mean(data), scale=stats.sem(data))
+                alpha=ci, loc=np.mean(data), scale=stats.sem(data)
+            )
     # return pd.Series({"mean": x, "ci_lower": ci_lower, "ci_upper": ci_upper})
     return x, ci_lower, ci_upper

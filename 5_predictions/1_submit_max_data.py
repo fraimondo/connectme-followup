@@ -3,19 +3,21 @@ import os
 
 # feature_sets = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
 # feature_sets = [6, 10, 12]
-feature_sets = [13]
+feature_sets = [16]
+# feature_sets = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
 targets = [
-    "GOS-E.3.bin",
-    "GOS-E.12.bin",
-    "mRS.3.bin",
-    "mRS.12.bin",
-    "CPC.3.bin",
-    "CPC.12.bin",
+    # "GOS-E.3.bin",
+    # "GOS-E.12.bin",
+    # "mRS.3.bin",
+    # "mRS.12.bin",
+    # "CPC.3.bin",
+    # "CPC.12.bin",
     "combined.outcome.3",
     "combined.outcome.12",
 ]
 # models = ["gsrf"]
-models = ["gssvm", "gsrf", "rf", "svm"]
+# models = ["gssvm", "gsrf", "rf", "svm"]
+models = ["gssvm", "gsrf"]
 cvs = ["kfold"]
 # cvs = ["loo"]
 

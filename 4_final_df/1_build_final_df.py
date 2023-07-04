@@ -1,3 +1,4 @@
+# %%
 from pathlib import Path
 import pandas as pd
 import sys
@@ -8,10 +9,15 @@ from lib.io import get_connectme_scalars
 
 data_path = Path(__file__).parent.parent / "data"
 
+# df_meta = pd.read_excel(
+#     data_path / "dataset.Federico.followup.final.xlsx"
+# )
+
 df_meta = pd.read_csv(
-    data_path / "dataset.Federico.followup.final.csv", sep=";"
+    data_path / "dataset.Federico.followup.final.csv", sep=';'
 )
 
+# %%
 # Filter NAN subjects
 df_meta = df_meta[~df_meta["Id"].isna()]
 
@@ -60,10 +66,15 @@ columns_to_keep = [
     "mRS.12.bin",
     "CPC.3.bin",
     "CPC.12.bin",
+    "comorb.any",
+    "cause.tbi",
+    "doc.improve",
+    "commandfollowing",
 ]
 
 df_meta = df_meta[columns_to_keep]
 
+# %%
 rename_dict = {
     "Id": "subject",
     "abcd": "eeg.abcd",
@@ -133,4 +144,5 @@ icm_df = icm_df.drop(columns=['channels'])
 
 df_meta = df_meta.merge(icm_df, on="subject", how="outer")
 
-df_meta.to_csv(data_path / "complete_df.csv", sep=";", index=False)
+df_meta.to_csv(data_path / "complete_df.2.csv", sep=";", index=False)
+# %%

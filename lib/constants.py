@@ -346,6 +346,12 @@ AGESEX_FEATURES = ["age", "sex"]
 DEATH_FEATURES = ["death", "death.cause"]
 DIAG_FEATURES = ["doc.enrol", "doc.disch"]
 DIAGBIN_FEATURES = ["doc.enrol.bi", "doc.disch.bi"]
+CLINICAL_FEATURES = [
+    "comorb.any",
+    "cause.tbi",
+    "doc.improve",
+    "commandfollowing",
+]
 
 TARGETS = [
     # "GOS-E.3",
@@ -397,9 +403,11 @@ outcome_map = {
     "No data": np.nan,
 }
 
-death_map = {
+yesno_map = {
     "No": 0,
     "Yes": 1,
+    "no": 0,
+    "yes": 1,
 }
 
 to_map = {
@@ -419,7 +427,11 @@ to_map = {
     "CPC.12.bin": outcome_bin,
     "combined.outcome.3": outcome_bin,
     "combined.outcome.12": outcome_bin,
-    "death": death_map,
+    "death": yesno_map,
+    "comorb.any": yesno_map,
+    "cause.tbi": yesno_map,
+    "doc.improve": yesno_map,
+    "commandfollowing": yesno_map,
 }
 
 
